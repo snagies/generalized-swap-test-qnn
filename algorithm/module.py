@@ -5,23 +5,13 @@ from qiskit_machine_learning.neural_networks import SamplerQNN
 from qiskit.circuit import Parameter, ParameterVector
 
 
-def normalize(v):
-    norm = np.linalg.norm(v)
-    if norm == 0: 
-       return v
-    return v / norm
-
-def swap_test(dim):
+def swap_test(dim, fm_explicit = False):
     
     control = QuantumRegister(1, 'control')
     x = QuantumRegister(dim, 'x')
     weights = QuantumRegister(dim, 'weights')
     
     qc = QuantumCircuit(control, x, weights)
-    fm = QuantumCircuit(control, x, weights)
-    
-    #feature map
-    fm.compose(RawFeatureVector(2**dim), x, inplace = True)
     
     #ansatz
     qc.h(control)
@@ -31,17 +21,28 @@ def swap_test(dim):
     
     qc.h(control)
     
-    qc.compose(RawFeatureVector(2**dim), weights, front = True, inplace = True)
+    if fm_explicit:
+        
+        fm = QuantumCircuit(control, x, weights)
+        
+        #feature map
+        fm.compose(RawFeatureVector(2**dim), x, inplace = True)
+        
+        qc.compose(RawFeatureVector(2**dim), weights, front = True, inplace = True)
+        
+        return fm, qc
     
-    return fm, qc
+    return qc
 
 
-test = normalize(np.random.rand(4))
+#test = normalize(np.random.rand(4))
 
-fm, ae = swap_test(2)
+#fm, ae = swap_test(2, fm_explicit = True)
 #fm.assign_parameters(test, inplace = True)
 #ae.assign_parameters(test, inplace = True)
 
-qc = QNNCircuit(feature_map = fm, ansatz = ae)
+#qc = QNNCircuit(feature_map = fm, ansatz = ae)
 
 #qnn = SamplerQNN(circuit=qc)
+
+#first transpile then give to sampler qnn?
