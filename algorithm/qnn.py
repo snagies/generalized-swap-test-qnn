@@ -33,6 +33,8 @@ class ScalableQNN():
         self.loss = loss
         
     def forward_pass(self, x, shots = 100):
+        #TODO option to simulate locally or on quantum hardware
+        
         #calculate qnn output for one sample (fitting completely onto modules)
         
         assert (self.dim * self.mod_num) % len(x) == 0
@@ -49,17 +51,12 @@ class ScalableQNN():
             self.qnn = QNNCircuit(feature_map = self.fm, ansatz = self.ae)
             
             #TODO sample module to get P(0)
-            #...
             p0[i] = 0.5
             
         sample_output = np.dot(self.coefficients, p0)
         
         return sample_output, p0
         
-        
-        
-        #provider = BasicProvider()
-        #backend = provider.get_backend("basic_simulator")
-        
-        #trans_qc = transpile(self.qnn, backend)
-        
+    def sweep(self, data):
+        #TODO Sampler functionality: sweep over parameters/data
+        pass
