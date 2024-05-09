@@ -7,6 +7,11 @@ def normalize(v):
        return v
     return v / norm
 
+def prob_normalize(v):
+    assert v.min() >= 0
+    prob_sum = np.sum(v)
+    return v / prob_sum
+
 def cosine_sim(a, b):
     x = normalize(a)
     y = normalize(b)
