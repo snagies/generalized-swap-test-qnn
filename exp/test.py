@@ -7,7 +7,7 @@ samples, labels = get_iris()
 
 qnn = ScalableQNN(1,2)
 
-losses = qnn.train(samples, labels, iterations = 100, learning_rate = 0.1,
+losses = qnn.train(samples, labels, iterations = 100, learning_rate = 0.05, shots_per_sweep = None,
                    print_progress = True)
 
 print(qnn.coefficients)

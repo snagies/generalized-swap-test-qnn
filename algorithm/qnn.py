@@ -3,7 +3,7 @@ import numpy as np
 from qiskit.primitives import Sampler
 
 from algorithm.module import swap_test
-from algorithm.helpers import normalize#, prob_normalize
+from algorithm.helpers import normalize, prob_normalize
 
 #TODO QNN composed solely of Clifford gates (except for initialize?) -> add quantum?
 
@@ -41,7 +41,10 @@ class ScalableQNN():
         self.coefficients = coeffs
     
     def update_weights(self, gradient, lr = 0.1):
-        self.weights = normalize(self.weights - lr * gradient)
+        for i in range(self.mod_num):
+            self.weights[i*self.dim:(i+1)*self.dim] = normalize(self.weights[i*self.dim:(i+1)*self.dim] 
+                                                                - lr * gradient[i*self.dim:(i+1)*self.dim])
+        #self.weights = normalize(self.weights - lr * gradient)
     
     def update_coefficients(self, gradient, lr = 0.1):
         #Necessary to normalize? allow negative coefficients
@@ -75,6 +78,7 @@ class ScalableQNN():
         
     def sweep(self, inputs, labels, lr = 0.05, shots = None):   
         #assume data is array of training inputs, labels is array of training labels
+        #gradient is calculated purely classically
         grad_w = np.zeros(self.dim * self.mod_num)
         grad_coeffs = np.zeros(self.mod_num)
         loss = 0
@@ -88,12 +92,21 @@ class ScalableQNN():
             loss += (f - y)**2 / len(inputs)
             
             for j in range(len(grad_coeffs)):
-                grad_coeffs[j] += 2 * (f - y) * p[j] / len(inputs)
+                grad_coeffs[j] += 2 * (f - y) * p[j]
                 
             for k in range(len(grad_w)):
-                #TODO implement
-                grad_w += 0 / len(inputs)
+                #normalized version gradient different?
+                mod_index = int(k/self.dim)
+                var_index = k - mod_index * self.dim
+                x = normalize(sample[mod_index*self.dim:(mod_index+1)*self.dim])
+                w = normalize(self.weights[mod_index*self.dim:(mod_index+1)*self.dim])
                 
+                grad_w[k] += (x[var_index] - np.dot(x,w) * w[var_index]) / 2
+             
+                
+        grad_coeffs /= len(inputs)
+        grad_w /= len(inputs)
+        
         self.loss = loss
         #self.update_weights(grad_w, lr) 
         self.update_coefficients(grad_coeffs, lr)
