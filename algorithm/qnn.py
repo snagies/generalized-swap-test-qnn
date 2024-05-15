@@ -1,8 +1,9 @@
 import numpy as np
-#from qiskit import transpile
+
 from qiskit.primitives import Sampler
-from module import swap_test
-from helpers import normalize, prob_normalize
+
+from algorithm.module import swap_test
+from algorithm.helpers import normalize#, prob_normalize
 
 #TODO QNN composed solely of Clifford gates (except for initialize?) -> add quantum?
 
@@ -20,7 +21,10 @@ class ScalableQNN():
         for i in range(self.mod_num):
             self.weights[i*self.dim:(i+1)*self.dim] = normalize(np.random.normal(0, 1, self.dim))
         
-        self.coefficients = prob_normalize(np.ones(self.mod_num))
+        #self.coefficients = prob_normalize(np.ones(self.mod_num))
+        self.coefficients = normalize(np.random.normal(0, 1, self.mod_num))
+        if self.mod_num == 1:
+            self.coefficients = 1
         
         self.loss = None
         self.gradient_weights = None
@@ -34,13 +38,14 @@ class ScalableQNN():
     
     def assign_coefficients(self, coeffs):
         assert len(coeffs) == self.mod_num
-        self.coefficients = prob_normalize(coeffs)
+        self.coefficients = coeffs
     
-    def update_weights(self, gradient, learning_rate = 0.1):
-        self.weights = normalize(self.weights - learning_rate * gradient)
+    def update_weights(self, gradient, lr = 0.1):
+        self.weights = normalize(self.weights - lr * gradient)
     
-    def update_coefficients(self, gradient, learning_rate = 0.1):
-        self.coefficients = prob_normalize(self.coefficients - learning_rate * gradient)
+    def update_coefficients(self, gradient, lr = 0.1):
+        #Necessary to normalize? allow negative coefficients
+        self.coefficients = self.coefficients - lr * gradient
     
     def forward_pass(self, x, shots = None):
         #TODO option to simulate locally or on quantum hardware
@@ -68,7 +73,7 @@ class ScalableQNN():
         
         return qnn_output, p0
         
-    def sweep(self, inputs, labels, lr = 0.01, shots = None):   
+    def sweep(self, inputs, labels, lr = 0.05, shots = None):   
         #assume data is array of training inputs, labels is array of training labels
         grad_w = np.zeros(self.dim * self.mod_num)
         grad_coeffs = np.zeros(self.mod_num)
@@ -90,15 +95,46 @@ class ScalableQNN():
                 grad_w += 0 / len(inputs)
                 
         self.loss = loss
-        self.update_weights(grad_w, lr) 
+        #self.update_weights(grad_w, lr) 
         self.update_coefficients(grad_coeffs, lr)
-        self.gradient_weights = grad_w
-        self.gradient_coefficients = grad_coeffs
+        #self.gradient_weights = grad_w
+        #self.gradient_coefficients = grad_coeffs
     
-    def train(self, inputs, labels, iterations = 1, shots_per_sweep = None):
+    def train(self, inputs, labels, iterations = 10, learning_rate = 0.05, shots_per_sweep = None, print_progress = False):
+        
+        losses = np.zeros(iterations)
+        
         for i in range(iterations):
-            self.sweep(inputs, labels)
-            print('Sweep ', i+1, ': Loss = ', self.loss)
+            
+            self.sweep(inputs, labels, lr = learning_rate, shots = shots_per_sweep)
+            losses[i] = self.loss
+            
+            if print_progress:
+                print('Sweep ', i+1, ': Loss = ', self.loss)
+                
+        return losses
+    
+    def predict(self, inputs, labels, classes = [-1,1], shots = None):
+        
+        print('Output   Prediction  Label')
+        counter = 0
+        
+        for i in range(len(inputs)):
+            f, p = self.forward_pass(inputs[i], shots)
+            #TODO adapt to other possible labels
+            if f > 0:
+                pred = 1
+            elif f < 0:
+                pred = -1
+            else:
+                pred = 0
+            
+            print(f, pred, labels[i])
+            if pred == labels[i]:
+                counter += 1
+        
+        print(counter, ' correct predictions')
+        
 
     
     

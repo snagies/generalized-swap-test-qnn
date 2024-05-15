@@ -5,7 +5,7 @@ from qiskit.providers.basic_provider import BasicProvider
 from qiskit import QuantumCircuit, QuantumRegister, ClassicalRegister, transpile
 #from qiskit_machine_learning.neural_networks import SamplerQNN
 #from qiskit.circuit import Parameter, ParameterVector
-from helpers import normalize
+from algorithm.helpers import normalize
 
 def swap_test_fm(dim, fm_explicit = False):
     
