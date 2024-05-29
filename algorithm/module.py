@@ -3,8 +3,6 @@ import numpy as np
 from qiskit_machine_learning.circuit.library import RawFeatureVector, QNNCircuit
 from qiskit.providers.basic_provider import BasicProvider
 from qiskit import QuantumCircuit, QuantumRegister, ClassicalRegister, transpile
-#from qiskit_machine_learning.neural_networks import SamplerQNN
-#from qiskit.circuit import Parameter, ParameterVector
 from algorithm.helpers import normalize
 
 def swap_test_fm(dim, fm_explicit = False):

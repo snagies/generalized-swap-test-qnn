@@ -27,9 +27,10 @@ def get_iris(dataset = '01_iris_setosa_versicolor.csv', permute = True, size = '
 
 
 def generate_xor(dim, size):
-    
+    #TODO otion to ensure equal frequency
     samples = []
     labels = []
+    counter = 0
     for i in range(size):
         r = random.randint(0, 2**dim)
         x = []
@@ -41,8 +42,10 @@ def generate_xor(dim, size):
             y += s
             temp //= 2
         y = 1 if (y % 2) == 0 else -1
+        if y == 1:
+            counter += 1
         samples.append(x)
         labels.append(y)
-
+    print(counter, ' instances with label 1')
     return samples, labels
 

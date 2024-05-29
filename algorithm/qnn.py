@@ -21,6 +21,7 @@ class ScalableQNN():
         for i in range(self.mod_num):
             self.weights[i*self.dim:(i+1)*self.dim] = normalize(np.random.normal(0, 1, self.dim))
         
+        #TODO more than two labels: multiple output layer neurons -> increase coefficients
         #self.coefficients = prob_normalize(np.ones(self.mod_num))
         self.coefficients = normalize(np.random.normal(0, 1, self.mod_num))
         if self.mod_num == 1:
@@ -84,26 +85,30 @@ class ScalableQNN():
         loss = 0
         
         for i in range(len(inputs)):
+            
             sample = inputs[i]
             y = labels[i]
             
             f, p = self.forward_pass(sample, shots = shots)
             
-            loss += (f - y)**2 / len(inputs)
+            #TODO try with sigmoid(f) for binary classification
+            loss += (f - y)**2 
             
             for j in range(len(grad_coeffs)):
                 grad_coeffs[j] += 2 * (f - y) * p[j]
                 
             for k in range(len(grad_w)):
+                #cos sim squared
                 #normalized version gradient different?
                 mod_index = int(k/self.dim)
                 var_index = k - mod_index * self.dim
                 x = normalize(sample[mod_index*self.dim:(mod_index+1)*self.dim])
                 w = normalize(self.weights[mod_index*self.dim:(mod_index+1)*self.dim])
                 
-                grad_w[k] += (x[var_index] - np.dot(x,w) * w[var_index]) / 2
+                grad_w[k] += (x[var_index] - np.dot(x,w) * w[var_index])  * np.dot(x,w) * self.coefficients[mod_index]
              
-                
+        loss /= len(inputs)
+             
         grad_coeffs /= len(inputs)
         grad_w /= len(inputs)
         
@@ -127,9 +132,11 @@ class ScalableQNN():
                 
         return losses
     
-    def predict(self, inputs, labels, classes = [-1,1], shots = None):
+    def predict(self, inputs, labels, classes = [-1,1], shots = None, print_preds = False):
         
-        print('Output   Prediction  Label')
+        if print_preds:
+            print('Output   Prediction  Label')
+            
         counter = 0
         
         for i in range(len(inputs)):
@@ -142,21 +149,15 @@ class ScalableQNN():
             else:
                 pred = 0
             
-            print(f, pred, labels[i])
+            if print_preds:
+                print(f, pred, labels[i])
+                
             if pred == labels[i]:
                 counter += 1
         
         print(counter, ' correct predictions')
         
 
-    
-    
-    
-    
-#test = normalize(np.random.rand(4))
-#w = normalize(np.random.rand(4))    
-
-#w = normalize(w - test*np.dot(test,w))
     
     
     
