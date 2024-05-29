@@ -1,6 +1,7 @@
 import numpy as np
 import os
 import pathlib
+import random
 
 
 def get_iris(dataset = '01_iris_setosa_versicolor.csv', permute = True, size = 'all'):
@@ -22,5 +23,26 @@ def get_iris(dataset = '01_iris_setosa_versicolor.csv', permute = True, size = '
         samples = data[:size,:-1]
         labels = data[:size,-1]
         
+    return samples, labels
+
+
+def generate_xor(dim, size):
+    
+    samples = []
+    labels = []
+    for i in range(size):
+        r = random.randint(0, 2**dim)
+        x = []
+        temp = r
+        y = 0
+        for d in range(dim):
+            s = int((temp % 2))
+            x.append((1 if s == 0 else -1) * random.random())
+            y += s
+            temp //= 2
+        y = 1 if (y % 2) == 0 else -1
+        samples.append(x)
+        labels.append(y)
+
     return samples, labels
 
