@@ -19,3 +19,8 @@ def cosine_sim(a, b):
 
 def euclidean_dist(a, b):
     return np.linalg.norm(a - b)
+
+
+def sigmoid(x, a = 5):
+    y = (2 / (1 + np.exp(-a * x))) - 1
+    return y

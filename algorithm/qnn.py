@@ -25,12 +25,17 @@ class ScalableQNN():
         #self.coefficients = prob_normalize(np.ones(self.mod_num))
         self.coefficients = normalize(np.random.normal(0, 1, self.mod_num))
         if self.mod_num == 1:
-            self.coefficients = 1
+            self.coefficients = [1]
         
         self.loss = None
         self.gradient_weights = None
         self.gradient_coefficients = None
         
+    def copy(self):
+        copy = ScalableQNN(self.mod_size, self.mod_num) 
+        copy.assign_weights(self.weights)
+        copy.assign_coefficients(self.coefficients)
+        return copy
     
     def assign_weights(self, w):
         assert len(w) == self.dim * self.mod_num
@@ -98,25 +103,25 @@ class ScalableQNN():
                 grad_coeffs[j] += 2 * (f - y) * p[j]
                 
             for k in range(len(grad_w)):
-                #cos sim squared
-                #normalized version gradient different?
+            
                 mod_index = int(k/self.dim)
                 var_index = k - mod_index * self.dim
+                
                 x = normalize(sample[mod_index*self.dim:(mod_index+1)*self.dim])
                 w = normalize(self.weights[mod_index*self.dim:(mod_index+1)*self.dim])
                 
-                grad_w[k] += (x[var_index] - np.dot(x,w) * w[var_index])  * np.dot(x,w) * self.coefficients[mod_index]
+                #grad_w[k] += x[var_index]  * np.dot(x,w) * self.coefficients[mod_index] * 2 * (f - y)
+                grad_w[k] += (x[var_index]  * np.dot(x,w) - w[var_index] * np.dot(x,w)**2) * self.coefficients[mod_index] * 2 * (f - y)
              
         loss /= len(inputs)
-             
         grad_coeffs /= len(inputs)
         grad_w /= len(inputs)
         
         self.loss = loss
-        #self.update_weights(grad_w, lr) 
+        self.update_weights(grad_w, lr) 
         self.update_coefficients(grad_coeffs, lr)
-        #self.gradient_weights = grad_w
-        #self.gradient_coefficients = grad_coeffs
+        self.gradient_weights = grad_w
+        self.gradient_coefficients = grad_coeffs
     
     def train(self, inputs, labels, iterations = 10, learning_rate = 0.05, shots_per_sweep = None, print_progress = False):
         
