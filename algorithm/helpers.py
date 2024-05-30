@@ -20,7 +20,11 @@ def cosine_sim(a, b):
 def euclidean_dist(a, b):
     return np.linalg.norm(a - b)
 
-
-def sigmoid(x, a = 5):
-    y = (2 / (1 + np.exp(-a * x))) - 1
-    return y
+def sigmoid(x, a = 10, b = 2, c = 0.75, d = 1, return_der = True):
+    y = (b / (1 + np.exp(-a * (x-c)))) - d
+    der = a * b * np.exp(-a * (x-c)) / (np.exp(-a * (x-c)) + 1)**2
+    if return_der:
+        return y, der
+    else: 
+        return y
+    

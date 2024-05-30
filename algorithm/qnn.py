@@ -3,7 +3,10 @@ import numpy as np
 from qiskit.primitives import Sampler
 
 from algorithm.module import swap_test
-from algorithm.helpers import normalize, prob_normalize
+from algorithm.helpers import normalize, prob_normalize, sigmoid
+
+
+
 
 #TODO QNN composed solely of Clifford gates (except for initialize?) -> add quantum?
 
@@ -22,8 +25,8 @@ class ScalableQNN():
             self.weights[i*self.dim:(i+1)*self.dim] = normalize(np.random.normal(0, 1, self.dim))
         
         #TODO more than two labels: multiple output layer neurons -> increase coefficients
-        #self.coefficients = prob_normalize(np.ones(self.mod_num))
-        self.coefficients = normalize(np.random.normal(0, 1, self.mod_num))
+        self.coefficients = prob_normalize(np.ones(self.mod_num))  #need to normalize after each update?
+        #self.coefficients = normalize(np.random.normal(0, 1, self.mod_num))
         if self.mod_num == 1:
             self.coefficients = [1]
         
@@ -50,11 +53,9 @@ class ScalableQNN():
         for i in range(self.mod_num):
             self.weights[i*self.dim:(i+1)*self.dim] = normalize(self.weights[i*self.dim:(i+1)*self.dim] 
                                                                 - lr * gradient[i*self.dim:(i+1)*self.dim])
-        #self.weights = normalize(self.weights - lr * gradient)
     
     def update_coefficients(self, gradient, lr = 0.1):
-        #Necessary to normalize? allow negative coefficients
-        self.coefficients = self.coefficients - lr * gradient
+        self.coefficients = prob_normalize(self.coefficients - lr * gradient)
     
     def forward_pass(self, x, shots = None):
         #TODO option to simulate locally or on quantum hardware
@@ -85,6 +86,7 @@ class ScalableQNN():
     def sweep(self, inputs, labels, lr = 0.05, shots = None):   
         #assume data is array of training inputs, labels is array of training labels
         #gradient is calculated purely classically
+        #TODO implement optional parameter to choose loss function
         grad_w = np.zeros(self.dim * self.mod_num)
         grad_coeffs = np.zeros(self.mod_num)
         loss = 0
@@ -96,7 +98,6 @@ class ScalableQNN():
             
             f, p = self.forward_pass(sample, shots = shots)
             
-            #TODO try with sigmoid(f) for binary classification
             loss += (f - y)**2 
             
             for j in range(len(grad_coeffs)):
@@ -110,7 +111,7 @@ class ScalableQNN():
                 x = normalize(sample[mod_index*self.dim:(mod_index+1)*self.dim])
                 w = normalize(self.weights[mod_index*self.dim:(mod_index+1)*self.dim])
                 
-                #grad_w[k] += x[var_index]  * np.dot(x,w) * self.coefficients[mod_index] * 2 * (f - y)
+                #grad_w[k] += x[var_index]  * np.dot(x,w) * self.coefficients[mod_index] * 2 * (f - y)  #false? doublecheck
                 grad_w[k] += (x[var_index]  * np.dot(x,w) - w[var_index] * np.dot(x,w)**2) * self.coefficients[mod_index] * 2 * (f - y)
              
         loss /= len(inputs)
@@ -122,18 +123,64 @@ class ScalableQNN():
         self.update_coefficients(grad_coeffs, lr)
         self.gradient_weights = grad_w
         self.gradient_coefficients = grad_coeffs
+        
     
+    def sweep_sigmoid(self, inputs, labels, lr = 0.05, shots = None, a = 5):   
+        #same as sweep, but with sigmoid loss function; a is steepness of sigmoid
+        grad_w = np.zeros(self.dim * self.mod_num)
+        grad_coeffs = np.zeros(self.mod_num)
+        loss = 0
+        
+        for i in range(len(inputs)):
+            
+            sample = inputs[i]
+            y = labels[i]
+            
+            f, p = self.forward_pass(sample, shots = shots)
+            
+            sig, sig_der = sigmoid(f, a)
+            
+            loss += (sig - y)**2 
+            
+            for j in range(len(grad_coeffs)):
+                grad_coeffs[j] += 2 * (sig - y) * (p[j] - f) * sig_der #-f correct for normalized probs?
+                
+            for k in range(len(grad_w)):
+            
+                mod_index = int(k/self.dim)
+                var_index = k - mod_index * self.dim
+                
+                x = normalize(sample[mod_index*self.dim:(mod_index+1)*self.dim])
+                w = normalize(self.weights[mod_index*self.dim:(mod_index+1)*self.dim])
+                
+                #grad_w[k] += x[var_index]  * np.dot(x,w) * self.coefficients[mod_index] * 2 * (sig - y) * sig_der
+                grad_w[k] += (x[var_index]  * np.dot(x,w) - w[var_index] * np.dot(x,w)**2) * self.coefficients[mod_index] * 2 * (sig - y) * sig_der   
+             
+        loss /= len(inputs)
+        grad_coeffs /= len(inputs)
+        grad_w /= len(inputs)
+        
+        self.loss = loss
+        self.update_weights(grad_w, lr) 
+        self.update_coefficients(grad_coeffs, lr)
+        self.gradient_weights = grad_w
+        self.gradient_coefficients = grad_coeffs
+        
+        
+        
+        
     def train(self, inputs, labels, iterations = 10, learning_rate = 0.05, shots_per_sweep = None, print_progress = False):
         
         losses = np.zeros(iterations)
         
         for i in range(iterations):
             
-            self.sweep(inputs, labels, lr = learning_rate, shots = shots_per_sweep)
+            self.sweep_sigmoid(inputs, labels, lr = learning_rate, shots = shots_per_sweep)
             losses[i] = self.loss
             
             if print_progress:
                 print('Sweep ', i+1, ': Loss = ', self.loss)
+                #print(self.gradient_coefficients)
                 
         return losses
     
@@ -147,15 +194,17 @@ class ScalableQNN():
         for i in range(len(inputs)):
             f, p = self.forward_pass(inputs[i], shots)
             #TODO adapt to other possible labels
-            if f > 0:
+            if f > 0.75:
                 pred = 1
-            elif f < 0:
+            elif f < 0.75:
                 pred = -1
             else:
                 pred = 0
             
             if print_preds:
-                print(f, pred, labels[i])
+                print(sigmoid(f,a=2, return_der = False), pred, labels[i])
+                #print(f, pred, labels[i])
+                
                 
             if pred == labels[i]:
                 counter += 1
