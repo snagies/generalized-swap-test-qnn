@@ -28,3 +28,7 @@ def sigmoid(x, a = 10, b = 2, c = 0.75, d = 1, return_der = True):
     else: 
         return y
     
+    
+x = np.linspace(-2,2, 1000)
+y, yder = sigmoid(x, 5, 2, 0, 1)
+
