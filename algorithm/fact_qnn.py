@@ -18,13 +18,15 @@ class FactorizedQNNClassical(nn.Module):
         """
         x: shape (batch_size, d)
         """
+        device = x.device
+
         batch_size = x.shape[0]
 
         # add bias
-        x_bias = torch.cat([x, torch.ones(batch_size, 1)], dim=1)
+        x_bias = torch.cat([x, torch.ones(batch_size, 1, device=device)], dim=1)
 
         # norms
-        x_norm = torch.norm(x, dim=1, keepdim=True)  # (batch_size, 1)
+        x_norm = torch.norm(x_bias, dim=1, keepdim=True)  # (batch_size, 1)
         w_norm = torch.norm(self.w, dim=2, keepdim=True)  # (N, k, 1)
 
         # normalize
@@ -33,6 +35,9 @@ class FactorizedQNNClassical(nn.Module):
 
         # squared inner products over d
         squared_inner_products = torch.matmul(w_normalized, x_normalized.T) ** 2  # (N, k, batch_size)
+
+        #m = nn.Dropout(p=0.2)
+        #squared_inner_products = m(squared_inner_products)
 
         # product over k
         product_terms = torch.prod(squared_inner_products, dim=1)  # (N, batch_size)
