@@ -20,23 +20,30 @@ def main():
     parser = argparse.ArgumentParser(description="Train Factorized QNN on datasets.")
 
     parser.add_argument("--dataset_dir", type=str, default="dataset/dataset", help="Dataset directory.")
-    parser.add_argument("--d", type=str, default="0,1,2,3,4,5,6,7,8,9,10", help="Comma-separated list of dataset indexes.")
+    parser.add_argument("--d", type=str, default="all", help="Comma-separated list of dataset indexes.")
     parser.add_argument("--N", type=str, default="10,100,1000", help="Comma-separated list of swap test counts.")
     parser.add_argument("--k", type=str, default="1,2,3,4,5,6,7", help="Comma-separated list of factor module counts.")
     parser.add_argument("--lr", type=str, default="0.001,0.01,0.1,1,10,100,1000", help="Comma-separated list of learning rates.")
     parser.add_argument("--epochs", type=int, default=50000, help="Number of training epochs.")
     parser.add_argument("--batch_size", type=int, default=256000, help="Batch size for training and testing data.")
-    parser.add_argument("--early_stopping", type=bool, default=True, help="Early stopping.")
+    parser.add_argument("--early_stopping", action=argparse.BooleanOptionalAction, default=True, help="Early stopping.")
     parser.add_argument("--validation_size", type=int, default=20, help="Validation set size percentage.")
     parser.add_argument("--n_splits", type=int, default=5, help="Number of cross-validation folds.")
     parser.add_argument("--shots", type=str, default="8192", help="Comma-separated list of shots for quantum execution.")
     parser.add_argument("--patience", type=int, default=250, help="Patience for early stopping.")
     parser.add_argument("--logdir", type=str, default='logs_qnn_data_kfold', help="Logging directory.")
     parser.add_argument("--modeldir", type=str, default='models_qnn_data_kfold', help="Models directory.")
+    parser.add_argument("--verbose", action=argparse.BooleanOptionalAction, default=True, help="Verbose output.")
 
     args = parser.parse_args()
 
-    d_list = list(map(int, args.d.split(',')))
+    datasets = sorted(os.listdir(args.dataset_dir))
+    if args.d == 'all':
+        data = datasets
+    else:
+        d_list = list(map(int, args.d.split(',')))
+        data = [datasets[d] for d in d_list]
+
     N_list = list(map(int, args.N.split(',')))
     k_list = list(map(int, args.k.split(',')))
     lr_list = list(map(float, args.lr.split(',')))
@@ -49,9 +56,6 @@ def main():
 
     mytime = str(time.time())
     filename = f'results_qnn_{mytime}.csv'
-
-    datasets = sorted(os.listdir(args.dataset_dir))
-    data = [datasets[d] for d in d_list]
 
     val_size = args.validation_size / 100
 
@@ -78,7 +82,7 @@ def main():
                         for shots in shots_list:
                             print(f"Training with N: {N}, k: {k}, lr: {lr}")
                             model = FactorizedQnnQuantum(N, k, d)
-                            model.train_classical(X_train, y_train, X_val, y_val, device, compute_region=False, epochs=args.epochs, batch_size=args.batch_size, lr=lr, early_stopping=args.early_stopping, patience=args.patience)
+                            model.train_classical(X_train, y_train, X_val, y_val, device, compute_region=False, epochs=args.epochs, batch_size=args.batch_size, lr=lr, early_stopping=args.early_stopping, patience=args.patience, verbose=args.verbose)
                             model_file = os.path.join(args.modeldir, f'model_{time.time()}.pt')
                             torch.save(model.classical_model.state_dict(), model_file)
 
