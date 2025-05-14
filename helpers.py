@@ -40,7 +40,7 @@ def train_model(model, X_train, y_train, X_test, y_test, device, epochs=1000, ba
             optimizer.step()
 
         if (epoch + 1) % check_every == 0:
-            y_pred = test_model(model, X_test, y_test, batch_size)
+            y_pred = test_model(model, X_test, y_test, verbose=verbose)
             predictions = (y_pred == y_test).float()
             accuracy = predictions.mean().detach().cpu().item()
             if verbose:
