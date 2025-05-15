@@ -2,6 +2,7 @@ import torch
 import torch.optim as optim
 import torch.nn as nn
 import pandas as pd
+from sklearn.metrics import f1_score
 
 def load_data(filename, device):
     df = pd.read_csv(filename)
@@ -9,7 +10,7 @@ def load_data(filename, device):
     y = df.iloc[:, -1].values
     return torch.tensor(X, dtype=torch.float32).to(device), torch.tensor(y, dtype=torch.float32).to(device)
 
-def train_model(model, X_train, y_train, X_test, y_test, device, epochs=1000, batch_size=100000, lr=0.01, writer=None, verbose=True, compute_region=True, early_stopping=False, check_every=10, patience=100):
+def train_model(model, X_train, y_train, X_test, y_test, device, epochs=1000, batch_size=100000, lr=0.01, writer=None, verbose=True, compute_region=True, early_stopping=False, check_every=10, patience=100, metric='accuracy'):
     optimizer = optim.Adam(model.parameters(), lr=lr)
     criterion = nn.BCEWithLogitsLoss()
 
@@ -17,7 +18,7 @@ def train_model(model, X_train, y_train, X_test, y_test, device, epochs=1000, ba
         region_ids, region_counts = compute_regions(X_test, device)
 
     if early_stopping:
-        best_accuracy = 0
+        best_perf = 0
         patience_counter = 0
 
     for epoch in range(epochs):
@@ -40,27 +41,32 @@ def train_model(model, X_train, y_train, X_test, y_test, device, epochs=1000, ba
             optimizer.step()
 
         if (epoch + 1) % check_every == 0:
-            y_pred = test_model(model, X_test, y_test, verbose=verbose)
+            y_pred = test_model(model, X_test, y_test, verbose=False)
             predictions = (y_pred == y_test).float()
-            accuracy = predictions.mean().detach().cpu().item()
+            if metric == 'accuracy':
+                perf = predictions.mean().detach().cpu().item()
+            elif metric == 'f1':
+                perf = f1_score(y_test.cpu().numpy(), y_pred.cpu().numpy())
+            else:
+                raise ValueError("Invalid metric. Choose 'accuracy' or 'f1'.")
             if verbose:
-                print(f"epoch {epoch+1}, \t loss: {loss.item():.4f}, \t accuracy: {accuracy:.2f}")
+                print(f"epoch {epoch+1}, \t loss: {loss.item():.4f}, \t {metric}: {perf:.2f}")
             if writer is not None:
-                writer.add_scalar("Train/Loss", loss.item(), epoch)
-                writer.add_scalar("Test/Accuracy", accuracy, epoch)
+                writer.add_scalar(f"Train/Loss", loss.item(), epoch)
+                writer.add_scalar(f"Test/{metric.capitalize()}", perf, epoch)
                 if compute_region:
                     region_accuracy = compute_region_accuracy(predictions, region_ids, region_counts)
                     writer.add_histogram("Test/RegionAccuracy", region_accuracy, epoch)
                     #for region_id, acc in enumerate(region_accuracy):
                         #writer.add_scalar(f"Test/Region_{region_id}_Accuracy", acc.item(), epoch)
-            if accuracy == 1:
+            if perf == 1:
                 if verbose:
                     print('Early stopping.')
                 return False
             if early_stopping:
-                # implement early stopping based on last accuracies
-                if accuracy > best_accuracy:
-                    best_accuracy = accuracy
+                # implement early stopping based on last performance
+                if perf > best_perf:
+                    best_perf = perf
                     patience_counter = 0
                 else:
                     patience_counter += check_every

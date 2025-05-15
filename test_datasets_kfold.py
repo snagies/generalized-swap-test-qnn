@@ -25,8 +25,10 @@ def main():
     parser.add_argument("--validation_size", type=int, default=20, help="Validation set size percentage.")
     parser.add_argument("--n_splits", type=int, default=5, help="Number of cross-validation folds.")
     parser.add_argument("--patience", type=int, default=250, help="Patience for early stopping.")
+    parser.add_argument("--validation_metric", type=str, default='accuracy', help="Metric chosen for validation.")
     parser.add_argument("--logdir", type=str, default='logs_data_kfold', help="Logging directory.")
     parser.add_argument("--modeldir", type=str, default='models_data_kfold', help="Models directory.")
+    parser.add_argument("--seed", type=int, default=123, help="RNG seed.")
     parser.add_argument("--verbose", action=argparse.BooleanOptionalAction, default=True, help="Verbose output.")
 
     args = parser.parse_args()
@@ -58,13 +60,13 @@ def main():
         data_file = os.path.join(args.dataset_dir, dat)
         X, y = load_data(data_file, device)
         # KFold cross-validation
-        kf = KFold(n_splits=args.n_splits, shuffle=True, random_state=123)
+        kf = KFold(n_splits=args.n_splits, shuffle=True, random_state=args.seed)
         for fold, (train_index, test_index) in enumerate(kf.split(X)):
             X_train, X_test = X[train_index], X[test_index]
             y_train, y_test = y[train_index], y[test_index]
             #validation
             if args.early_stopping:
-                X_train, X_val, y_train, y_val = train_test_split(X_train, y_train, test_size=val_size, random_state=123)
+                X_train, X_val, y_train, y_val = train_test_split(X_train, y_train, test_size=val_size, random_state=args.seed)
             else:
                 X_val, y_val = X_train, y_train
             d = X_train.shape[1]
@@ -74,7 +76,7 @@ def main():
                     for lr in lr_list:
                         print(f"Training with N: {N}, k: {k}, lr: {lr}")
                         model = FactorizedQNNClassical(N, k, d).to(device)
-                        train_model(model, X_train, y_train, X_val, y_val, compute_region=False, epochs=args.epochs, batch_size=args.batch_size, lr=lr, device=device, early_stopping=args.early_stopping, patience=args.patience, verbose=args.verbose)
+                        train_model(model, X_train, y_train, X_val, y_val, compute_region=False, epochs=args.epochs, batch_size=args.batch_size, lr=lr, device=device, early_stopping=args.early_stopping, patience=args.patience, metric=args.validation_metric, verbose=args.verbose)
                         model_file = os.path.join(args.modeldir, f'model_{time.time()}.pt')
                         torch.save(model.state_dict(), model_file)
                         y_hat = test_model(model, X_test, y_test)
