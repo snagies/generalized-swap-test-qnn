@@ -88,7 +88,9 @@ def main():
                             model_file = os.path.join(args.modeldir, f'model_{time.time()}.pt')
                             torch.save(model.classical_model.state_dict(), model_file)
 
-                            info = {'dataset': data_file, 'fold': fold, 'N': N, 'k': k, 'lr': lr, 'shots':shots, 'epochs': args.epochs, 'batch_size': args.batch_size, 'early_stopping': args.early_stopping, 'patience': args.patience, 'model_file': model_file}
+                            info = {'dataset': data_file, 'fold': fold, 'N': N, 'k': k, 'lr': lr, 'shots':shots, 'model_file': model_file}
+                            args_dict = {f'args_{k}': v for k, v in vars(args).items()}
+                            info = {**info, **args_dict}
 
                             y_hat = model.predict_classical(X_test)
                             acc, f1 = get_performance(y_test, y_hat)

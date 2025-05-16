@@ -83,7 +83,9 @@ def main():
                         accuracy = accuracy_score(y_test.cpu().numpy(), y_hat.cpu().numpy())
                         f1 = f1_score(y_test.cpu().numpy(), y_hat.cpu().numpy())
                         print(f'Accuracy: {accuracy}, F1: {f1}')
-                        info = {'dataset': data_file, 'fold': fold, 'N': N, 'k': k, 'lr': lr, 'epochs': args.epochs, 'batch_size': args.batch_size, 'early_stopping': args.early_stopping, 'patience': args.patience, 'model_file': model_file}
+                        info = {'dataset': data_file, 'fold': fold, 'N': N, 'k': k, 'lr': lr, 'model_file': model_file}
+                        args_dict = {f'args_{k}': v for k, v in vars(args).items()}
+                        info = {**info, **args_dict}
                         res.append({**info, 'acc': accuracy, 'f1': f1})
                         pd.DataFrame(res).to_csv(os.path.join(args.logdir, filename), index=False)
 
