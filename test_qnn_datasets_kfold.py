@@ -34,6 +34,7 @@ def main():
     parser.add_argument("--validation_metric", type=str, default='accuracy', help="Metric chosen for validation.")
     parser.add_argument("--logdir", type=str, default='logs_qnn_data_kfold', help="Logging directory.")
     parser.add_argument("--modeldir", type=str, default='models_qnn_data_kfold', help="Models directory.")
+    parser.add_argument("--save_model", action=argparse.BooleanOptionalAction, default=True, help="Save the model file.")
     parser.add_argument("--seed", type=int, default=123, help="RNG seed.")
     parser.add_argument("--verbose", action=argparse.BooleanOptionalAction, default=True, help="Verbose output.")
 
@@ -85,9 +86,11 @@ def main():
                             print(f"Training with N: {N}, k: {k}, lr: {lr}")
                             model = FactorizedQnnQuantum(N, k, d)
                             model.train_classical(X_train, y_train, X_val, y_val, device, compute_region=False, epochs=args.epochs, batch_size=args.batch_size, lr=lr, early_stopping=args.early_stopping, patience=args.patience, metric=args.validation_metric, verbose=args.verbose)
-                            model_file = os.path.join(args.modeldir, f'model_{time.time()}.pt')
-                            torch.save(model.classical_model.state_dict(), model_file)
-
+                            if args.save_model:
+                                model_file = os.path.join(args.modeldir, f'model_{time.time()}.pt')
+                                torch.save(model.classical_model.state_dict(), model_file)
+                            else:
+                                model_file = None
                             info = {'dataset': data_file, 'fold': fold, 'N': N, 'k': k, 'lr': lr, 'shots':shots, 'model_file': model_file}
                             args_dict = {f'args_{k}': v for k, v in vars(args).items()}
                             info = {**info, **args_dict}

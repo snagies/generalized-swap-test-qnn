@@ -28,6 +28,7 @@ def main():
     parser.add_argument("--validation_metric", type=str, default='accuracy', help="Metric chosen for validation.")
     parser.add_argument("--logdir", type=str, default='logs_data_kfold', help="Logging directory.")
     parser.add_argument("--modeldir", type=str, default='models_data_kfold', help="Models directory.")
+    parser.add_argument("--save_model", action=argparse.BooleanOptionalAction, default=True, help="Save the model file.")
     parser.add_argument("--seed", type=int, default=123, help="RNG seed.")
     parser.add_argument("--verbose", action=argparse.BooleanOptionalAction, default=True, help="Verbose output.")
 
@@ -77,8 +78,11 @@ def main():
                         print(f"Training with N: {N}, k: {k}, lr: {lr}")
                         model = FactorizedQNNClassical(N, k, d).to(device)
                         train_model(model, X_train, y_train, X_val, y_val, compute_region=False, epochs=args.epochs, batch_size=args.batch_size, lr=lr, device=device, early_stopping=args.early_stopping, patience=args.patience, metric=args.validation_metric, verbose=args.verbose)
-                        model_file = os.path.join(args.modeldir, f'model_{time.time()}.pt')
-                        torch.save(model.state_dict(), model_file)
+                        if args.save_model:
+                            model_file = os.path.join(args.modeldir, f'model_{time.time()}.pt')
+                            torch.save(model.state_dict(), model_file)
+                        else:
+                            model_file = None
                         y_hat = test_model(model, X_test, y_test)
                         accuracy = accuracy_score(y_test.cpu().numpy(), y_hat.cpu().numpy())
                         f1 = f1_score(y_test.cpu().numpy(), y_hat.cpu().numpy())
