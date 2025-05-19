@@ -81,6 +81,7 @@ def test_model(model, X_test, y_test, verbose=False):
     with torch.no_grad():
         z = model(X_test).squeeze()
         y_pred = torch.sign(z)
+        y_pred[y_pred == 0] = -1
     if verbose:
         accuracy = (y_pred == y_test).float().mean().detach().cpu().item()
         print(f"accuracy: {accuracy:.2f}")
