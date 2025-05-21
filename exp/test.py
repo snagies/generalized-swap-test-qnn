@@ -1,12 +1,14 @@
 import numpy as np
+#import torch
+from sklearn.model_selection import KFold
 
 import sys
 import os 
 
-#sys.path.insert(1, 'C:\\PhD\\code\\qml\\scalable-qnn')
+sys.path.insert(1, 'C:\\PhD\\code\\qml\\scalable-qnn')
 
-from dataset.data import get_iris, generate_xor
-from algorithm.qnn import ScalableQNN, ScalableQNN_test, ScalableQNN_classical
+from dataset.data import get_iris, generate_xor, load_mnist_binary_classifier
+from algorithm.qnn import ScalableQNN, ScalableQNN_test, ScalableQNN_classical, ScalableQNN_product
 from algorithm.helpers import sigmoid, normalize
 import matplotlib.pyplot as plt
 
@@ -21,17 +23,51 @@ def expand_array_ordered(original_array, n):
 
 
 #Number of samples in the training set
-num_samples = 100
-xor_dim = 3
+num_samples = 10000
+xor_dim = 1
+
+#%%
+kfold = KFold(10, shuffle = True, random_state = 1)
+
+samples, labels = get_iris()
+
+for train, test in kfold.split(samples):
+    X_train = samples[train]
+    Y_train = labels[train]
+    X_test = samples[test]
+    Y_test = labels[test]
+    
+    qnn = ScalableQNN(2, 1)
+    losses = qnn.train(X_train, Y_train, iterations = 100, learning_rate = 0.05, print_progress = False)
+    counter = qnn.predict(X_test, Y_test, print_preds = False)
+    
+    accuracy = counter / len(X_test)
+    print(accuracy)
 
 
-#generate data (XOR or iris)
-#samples, labels = get_iris()
+
+
+#%%
+qnn = ScalableQNN(2, 1)
+qnn.predict(samples, labels, print_preds = True)
+
+losses = qnn.train(samples, labels, iterations = 400, learning_rate = 0.01, print_progress = True)
+qnn.predict(samples, labels, print_preds = True)
+
+# qnn_cl = ScalableQNN_classical(4, 1)
+# qnn_cl.predict(samples, labels, print_preds = True)
+
+# losses = qnn_cl.train(samples, labels, iterations = 2000, learning_rate = 0.01, print_progress = True)
+# plt.plot(losses, '-')
+# qnn_cl.predict(samples, labels, print_preds = True)
+#%%
 samples, labels = generate_xor(xor_dim, num_samples)  
 
 
 #number of modules in network which receive copy of input
-reps = 8
+prod = 6
+mods = 10
+reps = prod * mods
 
 
 samples_original =  np.array(samples)
@@ -43,9 +79,32 @@ ones_column = np.ones((num_samples, 1))
 
 
 #repeat samples for each module
-#samples = expand_array_ordered(samples, reps)
-samples_classical = expand_array_ordered(samples_classical, reps)
+# samples = expand_array_ordered(samples, reps)
+# samples_classical = expand_array_ordered(samples_classical, reps)
 
+
+X_train, Y_train = load_mnist_binary_classifier(4, 9, quadrant_reorder=4)
+
+#%%
+#learn handwritten digits
+#for single module predict is not correct, as output always positive
+# x = X_train[:100,:]
+# y = Y_train[:100]
+
+x = X_train[:100,:]
+y = Y_train[:100]
+
+x2 = X_train[200:300,:]
+y2 = Y_train[200:300]
+
+#test 1 module vs 4 initialized with same weights (coefficients?)
+qnn_cl = ScalableQNN_classical(196, 4)
+qnn_cl.predict(x, y, print_preds = False)
+
+losses = qnn_cl.train(x, y, iterations = 200, learning_rate = 0.05, print_progress = True)
+plt.plot(losses, '-')
+
+qnn_cl.predict(x2, y2, print_preds = False)
 
 #%%
 #Initialize NN with reps modules with 3 input dimensions each
@@ -63,10 +122,11 @@ qnn_cl.predict(samples_classical, labels, print_preds = False)
 
 #%%
 
-
-# qnn = ScalableQNN_test(2,reps)
-# qnn.assign_coefficients([1]*reps)
-# #qnn_copy = qnn.copy()
+qnn_prod = ScalableQNN_product(1, prod , mods)
+qnn_prod.predict(samples_classical, labels, print_preds = False)
+losses = qnn_prod.train(samples_classical, labels, iterations = 3, learning_rate = 0.05, print_progress = False)
+plt.plot(losses, '-')
+qnn_prod.predict(samples_classical, labels, print_preds = False)
 #%%
 # qnn_xor = ScalableQNN_test(2,8)
 

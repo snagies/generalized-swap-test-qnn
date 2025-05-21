@@ -433,13 +433,14 @@ class ScalableQNN():
                 pred = 0
             
             if print_preds:
-                print(sigmoid(f, a=20, return_der = False), pred, labels[i])
-                #print(f, pred, labels[i])
+                #print(sigmoid(f, a=20, return_der = False), pred, labels[i])
+                print(f, pred, labels[i])
                 
             if pred == labels[i]:
                 counter += 1
         
-        print(counter, ' correct predictions')    
+        #print(counter, ' correct predictions')
+        return counter
     
     
 class ScalableQNN_test():
@@ -817,9 +818,9 @@ class ScalableQNN_classical():
             
             #calculate activation function and its derivative
             #sigmoid
-            act[i], act_der[i] = sigmoid(pre_act[i], 5, 2, 0, 1)
-            # #quadratic
-            # act[i], act_der[i] = pre_act[i]**2, 2 * pre_act[i]
+            #act[i], act_der[i] = sigmoid(pre_act[i], 5, 2, 0, 1)
+            #quadratic
+            act[i], act_der[i] = pre_act[i]**2, 2 * pre_act[i]
             # #cubic
             # act[i], act_der[i] = pre_act[i]**3, 3 * pre_act[i]**2
             # #quartic
@@ -922,7 +923,170 @@ class ScalableQNN_classical():
     
     
 
+class ScalableQNN_product():
     
+    def __init__(self, mod_size, mod_prod = 1, mod_num = 1):
+        
+        #size of classical input for each module
+        self.mod_size = mod_size
+        #hidden layer modules in each product
+        self.mod_prod = mod_prod
+        #last layer summation
+        self.mod_num = mod_num
+        
+        self.dim = self.mod_size
+        
+        #randomly initialized weights
+        self.weights = np.zeros((self.mod_num, self.mod_prod, self.dim))
+        for i in range(self.mod_num):
+            for j in range(self.mod_prod):
+                self.weights[i,j,:] = normalize(np.random.normal(0, 1, self.dim))
+        
+        #coefficients of the last layer
+        self.coefficients = np.random.normal(0, 0.1, self.mod_num)
+        if self.mod_num == 1:
+            self.coefficients = [1]
+        
+        #bias for each module
+        self.bias = np.random.normal(0, 0.1, (self.mod_num, self.mod_prod))
+        
+        self.loss = None
+        self.gradient_weights = None
+        self.gradient_coefficients = None
+        self.gradient_bias = None    
+        
+    def update_weights(self, gradient, lr = 0.1):
+        for i in range(self.mod_num):
+            for j in range(self.mod_prod):
+                self.weights[i,j,:] = normalize(self.weights[i,j,:] - lr * gradient[i,j,:])
+                   
+    def update_coefficients(self, gradient, lr = 0.1):
+        self.coefficients = self.coefficients - lr * gradient
+        
+    def update_bias(self, gradient, lr = 0.1):
+        for i in range(self.mod_num):
+            self.bias[i,:] = self.bias[i,:] - lr * gradient[i,:]
+            
+    def forward_pass(self, x):
+        assert self.dim == len(x)
+        
+        x = normalize(x)
+        
+        p0 = np.ones(self.mod_num)
+        
+        pre_act = np.zeros((self.mod_num, self.mod_prod))
+        act = np.zeros((self.mod_num, self.mod_prod))
+        act_der = np.zeros((self.mod_num, self.mod_prod))
+        
+        
+        
+        for i in range(self.mod_num):
+            for j in range(self.mod_prod):
+                weights_mod = self.weights[i, j, :]
+                
+                #calculate preactivation of module j in product i (cosine similarity + bias)
+                pre_act[i, j] = np.dot(x, weights_mod) + self.bias[i, j]
+                pre_act[i, j] = np.clip(pre_act[i, j], -100, 100) ##for stability
+                
+                #calculate activation function and its derivative
+                act[i, j], act_der[i, j] = pre_act[i, j]**2, 2 * pre_act[i, j]
+                
+                p0[i] *= act[i,j]
+            
+        qnn_output = np.dot(self.coefficients, p0)
+        
+        return qnn_output, p0, act_der
+    
+    def sweep(self, inputs, labels, lr = 0.05):
+        #assume data is array of training inputs, labels is array of training labels
+        
+        grad_w = np.zeros((self.mod_num, self.mod_prod, self.dim))
+        grad_coeffs = np.zeros(self.mod_num)
+        grad_bias = np.zeros((self.mod_num, self.mod_prod))
+        loss = 0
+        
+        epsilon = 1e-10
+        
+        for i in range(len(inputs)):
+            
+            sample = normalize(inputs[i])
+            y = labels[i]
+            
+            f, m, deriv = self.forward_pass(sample)
+            
+            #print(sample, f)
+            loss += (f - y)**2 
+            
+            for j in range(self.mod_num):
+                grad_coeffs[j] += 2 * (f - y) * m[j] 
+                
+            for k in range(self.mod_num):
+                for l in range(self.mod_prod):
+                    grad_bias[k,l] += 2 * (f - y) * m[k] * (np.dot(sample, self.weights[k,l,:]) + self.bias[k,l] + epsilon)**(-1) * 2 * self.coefficients[k]
+                     
+
+            for k in range(self.mod_num):
+                for l in range(self.mod_prod):
+                    for n in range(self.dim):
+                        grad_w[k,l,n] += 2 * (f - y) * m[k] * (np.dot(sample, self.weights[k,l,:]) + self.bias[k,l] + epsilon)**(-1) * 2 * self.coefficients[k] * (sample[n] - np.dot(sample, self.weights[k,l,:]) * self.weights[k,l,n])     
+                    
+             
+        loss /= len(inputs)
+        grad_coeffs /= len(inputs)
+        grad_bias /= len(inputs)
+        grad_w /= len(inputs)
+        
+        self.loss = loss
+        self.update_weights(grad_w, lr) 
+        self.update_coefficients(grad_coeffs, lr)
+        self.update_bias(grad_bias, lr)
+        self.gradient_weights = grad_w
+        self.gradient_coefficients = grad_coeffs
+        self.gradient_bias = grad_bias
+        
+    def train(self, inputs, labels, iterations = 100, learning_rate = 0.05, print_progress = False):
+        
+        losses = np.zeros(iterations)
+        
+        for i in range(iterations):
+            
+            self.sweep(inputs, labels, lr = learning_rate)
+            losses[i] = self.loss
+            
+            if print_progress:
+                print('Sweep ', i+1, ': Loss = ', self.loss)
+                
+        return losses
+                
+    def predict(self, inputs, labels, print_preds = False):
+        
+        if print_preds:
+            print('Output   Prediction  Label')
+            
+        counter = 0
+        
+        for i in range(len(inputs)):
+            f, p, _ = self.forward_pass(inputs[i])
+            
+            if f > 0:
+                pred = +1
+            elif f < 0:
+                pred = -1
+            else:
+                pred = 0
+          
+            if print_preds:
+                print(f, pred, labels[i])
+                
+            if pred == labels[i]:
+                counter += 1
+        
+        print(counter, ' correct predictions')
+    
+    
+    
+            
+        
     
     
     
