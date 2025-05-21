@@ -83,7 +83,7 @@ ones_column = np.ones((num_samples, 1))
 # samples_classical = expand_array_ordered(samples_classical, reps)
 
 
-X_train, Y_train = load_mnist_binary_classifier(4, 9, quadrant_reorder=4)
+X_train, Y_train = load_mnist_binary_classifier(3, 5, quadrant_reorder=None)
 
 #%%
 #learn handwritten digits
