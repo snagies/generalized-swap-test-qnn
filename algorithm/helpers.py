@@ -1,4 +1,5 @@
 import numpy as np
+from itertools import combinations
 
 
 def normalize(v):
@@ -28,7 +29,10 @@ def sigmoid(x, a = 10, b = 2, c = 0.75, d = 1, return_der = True):
     else: 
         return y
     
+def n_choose_k(n, k):
+    if k <= 0 or k > n:
+        return ""
+    return ','.join('-'.join(map(str, combo)) for combo in combinations(range(n), k))
     
-x = np.linspace(-2,2, 1000)
-y, yder = sigmoid(x, 5, 2, 0, 1)
+
 
