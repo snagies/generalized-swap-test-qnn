@@ -1,3 +1,10 @@
+# Logs and models directories
+logs/
+models/
+
+# Synthetic datasets
+dataset/synthetic
+
 # PyTorch models
 .pth
 .pt

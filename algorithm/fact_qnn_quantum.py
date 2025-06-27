@@ -40,7 +40,7 @@ class FactorizedQnnQuantum():
             y_pred = torch.sign(z)
         return y_pred
 
-    def predict_quantum(self, X_test, batch_size=32, execution='statevector', shots=1024, adaptive_shots=False):
+    def predict_quantum(self, X_test, batch_size=100000, execution='statevector', shots=1024, adaptive_shots=False):
         X_test = X_test.cpu().numpy()
         circuit_runner = CircuitRunner(execution=execution, shots=shots)
         res = []
