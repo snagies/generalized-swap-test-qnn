@@ -31,7 +31,7 @@ Code for the implementation of "Enhancing Expressivity of Quantum Neural Network
     python generate_xor_dataset.py
     cd ..
 #### Run the test
-    python test_xor_quantum.py
+    python test_xor_classical.py
 
 ### Run the MNIST test
     python test_kfold_MNIST.py
