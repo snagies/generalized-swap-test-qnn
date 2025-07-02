@@ -1,9 +1,5 @@
-import numpy as np
-
-from qiskit_machine_learning.circuit.library import RawFeatureVector, QNNCircuit
-from qiskit.providers.basic_provider import BasicProvider
-from qiskit import QuantumCircuit, QuantumRegister, ClassicalRegister, transpile
-from algorithm.helpers import normalize
+from qiskit_machine_learning.circuit.library import RawFeatureVector
+from qiskit import QuantumCircuit, QuantumRegister, ClassicalRegister
 
 def swap_test_fm(dim, fm_explicit = False):
     
@@ -15,7 +11,6 @@ def swap_test_fm(dim, fm_explicit = False):
     qc = QuantumCircuit(cr, control, x, weights)
     qc.barrier()
     
-    #ansatz
     qc.h(control)
 
     for i in range(dim):
@@ -29,7 +24,6 @@ def swap_test_fm(dim, fm_explicit = False):
         
         fm = QuantumCircuit(cr, control, x, weights)
         
-        #feature map
         fm.compose(RawFeatureVector(2**dim), x, inplace = True)
         fm.barrier()
         

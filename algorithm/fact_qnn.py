@@ -57,7 +57,7 @@ class FactorizedQNNClassical_split(nn.Module):
         super(FactorizedQNNClassical_split, self).__init__()
         self.k = k
         self.d = d
-        self.split = quadrants #Image is reordered into quadrants, e.g. for quadrants = 4: 1st quarter of features corresponds to top left image sector and so on
+        self.split = quadrants #Image is reordered into quadrants, e.g. for quadrants = 4: 1st quarter of features corresponds to top left image sector
         self.Nsplit = Nsplit #Each quadrant is fed into Nsplit different product modules, each factor module within gets the same quadrant as input
         assert self.d % self.split == 0
         
